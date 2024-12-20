@@ -1,9 +1,68 @@
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
+import { format } from "date-fns";
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
+  const [stats, setStats] = useState({
+    present: 0,
+    absent: 0,
+    late: 0,
+    regularize: 0
+  });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+
+  useEffect(() => {
+    if (user) {
+      fetchAttendanceStats();
+    }
+  }, [user]);
+
+  const fetchAttendanceStats = async () => {
+    if (!user?.employeeId) return;
+
+    const db = getFirestore();
+    const currentMonth = new Date();
+    const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+
+    const q = query(
+      collection(db, "attendance"),
+      where("employeeId", "==", user.employeeId),
+      where("date", ">=", startOfMonth),
+      where("date", "<=", endOfMonth)
+    );
+
+    try {
+      const querySnapshot = await getDocs(q);
+      let present = 0;
+      let late = 0;
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.status === 'P') present++;
+        if (data.status === 'PL') late++;
+      });
+
+      // Calculate working days in current month (excluding weekends)
+      const workingDays = Array.from(
+        { length: endOfMonth.getDate() },
+        (_, i) => new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i + 1)
+      ).filter(date => ![0, 6].includes(date.getDay())).length;
+
+      setStats({
+        present,
+        late,
+        absent: workingDays - (present + late),
+        regularize: 0 // To be implemented with regularization system
+      });
+    } catch (error) {
+      console.error("Error fetching attendance stats:", error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -15,13 +74,13 @@ const Dashboard = () => {
           </Button>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Present</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-green-600">0</p>
+              <p className="text-3xl font-bold text-green-600">{stats.present}</p>
             </CardContent>
           </Card>
           
@@ -30,7 +89,7 @@ const Dashboard = () => {
               <CardTitle className="text-lg">Absent</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-red-600">0</p>
+              <p className="text-3xl font-bold text-red-600">{stats.absent}</p>
             </CardContent>
           </Card>
           
@@ -39,7 +98,7 @@ const Dashboard = () => {
               <CardTitle className="text-lg">Late</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-yellow-600">0</p>
+              <p className="text-3xl font-bold text-yellow-600">{stats.late}</p>
             </CardContent>
           </Card>
           
@@ -48,7 +107,39 @@ const Dashboard = () => {
               <CardTitle className="text-lg">Regularize</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-blue-600">0</p>
+              <p className="text-3xl font-bold text-blue-600">{stats.regularize}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Attendance Calendar</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                className="rounded-md border"
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Today's Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p className="text-sm text-gray-500">
+                  Date: {format(new Date(), 'PPP')}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Status: {stats.present > 0 ? 'Present' : 'Not Marked'}
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>

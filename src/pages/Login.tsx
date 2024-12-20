@@ -5,22 +5,95 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import Camera from "@/components/Camera";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getFirestore, doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const storage = getStorage();
+  const db = getFirestore();
+
+  const getCurrentLocation = () => {
+    return new Promise<GeolocationPosition>((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject('Geolocation is not supported');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+  };
+
+  const getIPAddress = async () => {
+    try {
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      return data.ip;
+    } catch (error) {
+      console.error('Error fetching IP:', error);
+      return null;
+    }
+  };
+
+  const handlePhotoCapture = async (photoBlob: Blob) => {
+    try {
+      const timestamp = new Date().getTime();
+      const storageRef = ref(storage, `attendance-photos/${timestamp}.jpg`);
+      await uploadBytes(storageRef, photoBlob);
+      const photoUrl = await getDownloadURL(storageRef);
+      
+      const location = await getCurrentLocation();
+      const ipAddress = await getIPAddress();
+      
+      // Save attendance record
+      const attendanceRef = doc(db, 'attendance', `${timestamp}`);
+      await setDoc(attendanceRef, {
+        employeeId: email, // Using email as employeeId temporarily
+        date: serverTimestamp(),
+        loginTime: serverTimestamp(),
+        status: new Date().getHours() < 9 || (new Date().getHours() === 9 && new Date().getMinutes() <= 30) ? 'P' : 'PL',
+        photo: photoUrl,
+        location: {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          address: 'To be implemented with geocoding service'
+        },
+        ipAddress
+      });
+
+      setShowCamera(false);
+      navigate("/dashboard");
+    } catch (error) {
+      console.error('Error processing login:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process login. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
       await login(email, password);
-      navigate("/dashboard");
+      setShowCamera(true);
     } catch (error) {
       console.error("Login error:", error);
+      toast({
+        title: "Login Failed",
+        description: "Invalid email or password",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -68,6 +141,25 @@ const Login = () => {
           </form>
         </CardContent>
       </Card>
+
+      <Dialog open={showCamera} onOpenChange={setShowCamera}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Capture Attendance Photo</DialogTitle>
+          </DialogHeader>
+          <Camera
+            onCapture={handlePhotoCapture}
+            onError={(error) => {
+              toast({
+                title: "Camera Error",
+                description: error,
+                variant: "destructive",
+              });
+              setShowCamera(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
