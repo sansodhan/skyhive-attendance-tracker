@@ -71,6 +71,6 @@ const initializeTestUsers = async () => {
 };
 
 // Uncomment and run this once to initialize test users, then comment it out again
-initializeTestUsers();
+// initializeTestUsers();
 
 export { initializeTestUsers };
