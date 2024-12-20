@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -17,7 +17,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (employeeId: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -28,11 +28,63 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const login = async (employeeId: string, password: string) => {
+    try {
+      // For test users, use predefined email format
+      const email = employeeId === "000" ? "admin@skyinvestments.com" : "employee@skyinvestments.com";
+      
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userDoc = await getDoc(doc(db, "users", employeeId));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUser({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          employeeId: userData.employeeId,
+          name: userData.name,
+          role: userData.role,
+          joiningDate: userData.joiningDate.toDate(),
+          active: userData.active,
+        });
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({
+        title: "Login Failed",
+        description: "Invalid credentials",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to log out",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          // For test users, get employeeId from email
+          const employeeId = firebaseUser.email?.includes("admin") ? "000" : "001";
+          const userDoc = await getDoc(doc(db, "users", employeeId));
+          
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setUser({
@@ -61,36 +113,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => unsubscribe();
   }, [toast]);
-
-  const login = async (email: string, password: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      toast({
-        title: "Login Failed",
-        description: "Invalid email or password",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await signOut(auth);
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to log out",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout }}>

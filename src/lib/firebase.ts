@@ -20,3 +20,36 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const analytics = getAnalytics(app);
+
+// Initialize test users
+const initializeTestUsers = async () => {
+  const testUsers = [
+    {
+      employeeId: "000",
+      password: "Admin001",
+      name: "Admin User",
+      role: "admin",
+      email: "admin@skyinvestments.com",
+    },
+    {
+      employeeId: "001",
+      password: "Emp001",
+      name: "Test Employee",
+      role: "employee",
+      email: "employee@skyinvestments.com",
+    }
+  ];
+
+  // Add test users to Firestore
+  const usersRef = collection(db, "users");
+  for (const user of testUsers) {
+    await setDoc(doc(usersRef, user.employeeId), {
+      ...user,
+      joiningDate: new Date(),
+      active: true
+    });
+  }
+};
+
+// Call this function once to set up test users
+// initializeTestUsers();
