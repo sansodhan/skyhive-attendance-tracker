@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { getFirestore, collection, doc, setDoc } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics } from "firebase/analytics";
@@ -22,12 +22,14 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
-// Initialize test users in Firestore
+// Initialize test users in both Authentication and Firestore
 const initializeTestUsers = async () => {
   try {
     const testUsers = [
       {
         employeeId: "000",
+        email: "000@skyinvestments.com",
+        password: "Admin001",
         name: "Admin User",
         role: "admin",
         joiningDate: new Date(),
@@ -35,6 +37,8 @@ const initializeTestUsers = async () => {
       },
       {
         employeeId: "001",
+        email: "001@skyinvestments.com",
+        password: "Emp001",
         name: "Test Employee",
         role: "employee",
         joiningDate: new Date(),
@@ -42,9 +46,21 @@ const initializeTestUsers = async () => {
       }
     ];
 
-    // Create Firestore records
     for (const user of testUsers) {
-      await setDoc(doc(db, "users", user.employeeId), user);
+      try {
+        // Create Authentication user
+        await createUserWithEmailAndPassword(auth, user.email, user.password);
+        console.log(`Created Authentication user for ${user.employeeId}`);
+      } catch (authError: any) {
+        // Skip if user already exists
+        if (authError.code !== 'auth/email-already-in-use') {
+          throw authError;
+        }
+      }
+
+      // Create/update Firestore record (excluding auth-specific fields)
+      const { email, password, ...firestoreData } = user;
+      await setDoc(doc(db, "users", user.employeeId), firestoreData);
       console.log(`Created/updated Firestore record for ${user.employeeId}`);
     }
     
