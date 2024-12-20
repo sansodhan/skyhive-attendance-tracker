@@ -39,6 +39,31 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const AppRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <Dashboard />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        }
+      />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+};
+
 const App = () => (
   <AuthProvider>
     <QueryClientProvider client={queryClient}>
@@ -46,26 +71,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <AdminDashboard />
-                </AdminRoute>
-              }
-            />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+          <AppRoutes />
         </TooltipProvider>
       </BrowserRouter>
     </QueryClientProvider>
