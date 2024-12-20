@@ -9,47 +9,54 @@ const firebaseConfig = {
   authDomain: "sky-investment-851bc.firebaseapp.com",
   databaseURL: "https://sky-investment-851bc-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "sky-investment-851bc",
-  storageBucket: "sky-investment-851bc.firebasestorage.app",
+  storageBucket: "sky-investment-851bc.appspot.com",
   messagingSenderId: "1016242571780",
   appId: "1:1016242571780:web:cf4c6a5d7dcd9ee71a0351",
   measurementId: "G-EX04TZ4KQ8"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const analytics = getAnalytics(app);
+export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
-// Initialize test users
+// Initialize test users in Firestore
 const initializeTestUsers = async () => {
-  const testUsers = [
-    {
-      employeeId: "000",
-      password: "Admin001",
-      name: "Admin User",
-      role: "admin",
-      email: "admin@skyinvestments.com",
-    },
-    {
-      employeeId: "001",
-      password: "Emp001",
-      name: "Test Employee",
-      role: "employee",
-      email: "employee@skyinvestments.com",
-    }
-  ];
+  try {
+    const testUsers = [
+      {
+        employeeId: "000",
+        name: "Admin User",
+        role: "admin",
+        email: "admin@skyinvestments.com",
+        joiningDate: new Date(),
+        active: true
+      },
+      {
+        employeeId: "001",
+        name: "Test Employee",
+        role: "employee",
+        email: "employee@skyinvestments.com",
+        joiningDate: new Date(),
+        active: true
+      }
+    ];
 
-  // Add test users to Firestore
-  const usersRef = collection(db, "users");
-  for (const user of testUsers) {
-    await setDoc(doc(usersRef, user.employeeId), {
-      ...user,
-      joiningDate: new Date(),
-      active: true
-    });
+    // Add test users to Firestore
+    const usersRef = collection(db, "users");
+    for (const user of testUsers) {
+      await setDoc(doc(usersRef, user.employeeId), user);
+    }
+    
+    console.log("Test users initialized successfully");
+  } catch (error) {
+    console.error("Error initializing test users:", error);
   }
 };
 
-// Call this function once to set up test users
+// Uncomment the line below to initialize test users (run once)
 // initializeTestUsers();
+
+export { initializeTestUsers };
