@@ -40,9 +40,9 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => (
-  <BrowserRouter>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <BrowserRouter>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -67,9 +67,9 @@ const App = () => (
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  </BrowserRouter>
+      </BrowserRouter>
+    </AuthProvider>
+  </QueryClientProvider>
 );
 
 export default App;

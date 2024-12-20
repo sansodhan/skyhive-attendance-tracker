@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser({
           uid: userCredential.user.uid,
           ...userData,
-          joiningDate: userData.joiningDate.toDate(),
+          joiningDate: userData.joiningDate instanceof Date ? userData.joiningDate : new Date(userData.joiningDate),
         });
       } else {
         throw new Error("User data not found");
@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser({
               uid: firebaseUser.uid,
               ...userData,
-              joiningDate: userData.joiningDate.toDate(),
+              joiningDate: userData.joiningDate instanceof Date ? userData.joiningDate : new Date(userData.joiningDate),
             });
           }
         } catch (error) {
