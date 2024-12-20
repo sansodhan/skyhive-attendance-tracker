@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { getFirestore, collection, doc, setDoc } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics } from "firebase/analytics";
@@ -30,7 +30,7 @@ const initializeTestUsers = async () => {
         employeeId: "000",
         name: "Admin User",
         role: "admin",
-        email: "admin@skyinvestments.com",
+        email: "000@skyinvestments.com",
         joiningDate: new Date(),
         active: true
       },
@@ -38,16 +38,30 @@ const initializeTestUsers = async () => {
         employeeId: "001",
         name: "Test Employee",
         role: "employee",
-        email: "employee@skyinvestments.com",
+        email: "001@skyinvestments.com",
         joiningDate: new Date(),
         active: true
       }
     ];
 
-    // Add test users to Firestore
-    const usersRef = collection(db, "users");
+    // Create Firebase Auth users and Firestore records
     for (const user of testUsers) {
-      await setDoc(doc(usersRef, user.employeeId), user);
+      try {
+        // Create Firebase Auth user
+        await createUserWithEmailAndPassword(
+          auth, 
+          user.email,
+          user.employeeId === "000" ? "Admin001" : "Emp001"
+        );
+      } catch (error: any) {
+        // Ignore if user already exists
+        if (error.code !== 'auth/email-already-in-use') {
+          console.error("Error creating auth user:", error);
+        }
+      }
+
+      // Create Firestore record
+      await setDoc(doc(db, "users", user.employeeId), user);
     }
     
     console.log("Test users initialized successfully");

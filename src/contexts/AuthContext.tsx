@@ -1,12 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useToast } from "@/components/ui/use-toast";
 
 interface User {
   uid: string;
-  email: string | null;
   employeeId: string;
   name: string;
   role: 'admin' | 'employee';
@@ -28,31 +27,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const createFirebaseUser = async (employeeId: string, password: string) => {
+    const email = `${employeeId}@skyinvestments.com`;
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      console.log("Firebase user created successfully");
+    } catch (error: any) {
+      if (error.code !== 'auth/email-already-in-use') {
+        throw error;
+      }
+    }
+  };
+
   const login = async (employeeId: string, password: string) => {
     try {
-      // For test users, use predefined email format
-      const email = employeeId === "000" ? "admin@skyinvestments.com" : "employee@skyinvestments.com";
+      // First, try to create the user (will fail if already exists)
+      await createFirebaseUser(employeeId, password);
       
+      // Then sign in
+      const email = `${employeeId}@skyinvestments.com`;
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Get user data from Firestore
       const userDoc = await getDoc(doc(db, "users", employeeId));
       
       if (userDoc.exists()) {
         const userData = userDoc.data();
         setUser({
           uid: userCredential.user.uid,
-          email: userCredential.user.email,
           employeeId: userData.employeeId,
           name: userData.name,
           role: userData.role,
           joiningDate: userData.joiningDate.toDate(),
           active: userData.active,
         });
+      } else {
+        throw new Error("User data not found");
       }
     } catch (error) {
       console.error("Login error:", error);
       toast({
         title: "Login Failed",
-        description: "Invalid credentials",
+        description: "Invalid employee ID or password",
         variant: "destructive",
       });
       throw error;
@@ -68,6 +84,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: "You have been successfully logged out",
       });
     } catch (error) {
+      console.error("Logout error:", error);
       toast({
         title: "Error",
         description: "Failed to log out",
@@ -81,15 +98,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // For test users, get employeeId from email
-          const employeeId = firebaseUser.email?.includes("admin") ? "000" : "001";
+          const employeeId = firebaseUser.email?.split('@')[0] || '';
           const userDoc = await getDoc(doc(db, "users", employeeId));
           
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setUser({
               uid: firebaseUser.uid,
-              email: firebaseUser.email,
               employeeId: userData.employeeId,
               name: userData.name,
               role: userData.role,
