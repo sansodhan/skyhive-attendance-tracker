@@ -42,9 +42,8 @@ const initializeTestUsers = async () => {
       }
     ];
 
-    // Create Firestore records only
+    // Create Firestore records
     for (const user of testUsers) {
-      // Create or update Firestore record
       await setDoc(doc(db, "users", user.employeeId), user);
       console.log(`Created/updated Firestore record for ${user.employeeId}`);
     }
@@ -55,7 +54,7 @@ const initializeTestUsers = async () => {
   }
 };
 
-// Run this once to initialize test users, then comment it out
+// Uncomment and run this once to initialize test users, then comment it out again
 // initializeTestUsers();
 
 export { initializeTestUsers };
