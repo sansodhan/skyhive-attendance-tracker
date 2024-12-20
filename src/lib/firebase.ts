@@ -30,7 +30,6 @@ const initializeTestUsers = async () => {
         employeeId: "000",
         name: "Admin User",
         role: "admin",
-        email: "000@skyinvestments.com",
         joiningDate: new Date(),
         active: true
       },
@@ -38,7 +37,6 @@ const initializeTestUsers = async () => {
         employeeId: "001",
         name: "Test Employee",
         role: "employee",
-        email: "001@skyinvestments.com",
         joiningDate: new Date(),
         active: true
       }
@@ -47,21 +45,23 @@ const initializeTestUsers = async () => {
     // Create Firebase Auth users and Firestore records
     for (const user of testUsers) {
       try {
-        // Create Firebase Auth user
-        await createUserWithEmailAndPassword(
-          auth, 
-          user.email,
-          user.employeeId === "000" ? "Admin001" : "Emp001"
-        );
+        // Create Firebase Auth user with employeeId@skyinvestments.com format
+        const email = `${user.employeeId}@skyinvestments.com`;
+        const password = user.employeeId === "000" ? "Admin001" : "Emp001";
+        
+        await createUserWithEmailAndPassword(auth, email, password);
+        console.log(`Created auth user for ${user.employeeId}`);
       } catch (error: any) {
         // Ignore if user already exists
         if (error.code !== 'auth/email-already-in-use') {
-          console.error("Error creating auth user:", error);
+          console.error(`Error creating auth user for ${user.employeeId}:`, error);
+          throw error;
         }
       }
 
-      // Create Firestore record
+      // Create or update Firestore record
       await setDoc(doc(db, "users", user.employeeId), user);
+      console.log(`Created/updated Firestore record for ${user.employeeId}`);
     }
     
     console.log("Test users initialized successfully");
@@ -70,7 +70,7 @@ const initializeTestUsers = async () => {
   }
 };
 
-// Uncomment the line below to initialize test users (run once)
-// initializeTestUsers();
+// Run this once to initialize test users, then comment it out
+initializeTestUsers();
 
 export { initializeTestUsers };

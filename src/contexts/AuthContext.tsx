@@ -1,17 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { useToast } from "@/components/ui/use-toast";
-
-interface User {
-  uid: string;
-  employeeId: string;
-  name: string;
-  role: 'admin' | 'employee';
-  joiningDate: Date;
-  active: boolean;
-}
+import type { User } from "@/types";
 
 interface AuthContextType {
   user: User | null;
@@ -27,24 +19,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const createFirebaseUser = async (employeeId: string, password: string) => {
-    const email = `${employeeId}@skyinvestments.com`;
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      console.log("Firebase user created successfully");
-    } catch (error: any) {
-      if (error.code !== 'auth/email-already-in-use') {
-        throw error;
-      }
-    }
-  };
-
   const login = async (employeeId: string, password: string) => {
     try {
-      // First, try to create the user (will fail if already exists)
-      await createFirebaseUser(employeeId, password);
-      
-      // Then sign in
       const email = `${employeeId}@skyinvestments.com`;
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
@@ -52,14 +28,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userDoc = await getDoc(doc(db, "users", employeeId));
       
       if (userDoc.exists()) {
-        const userData = userDoc.data();
+        const userData = userDoc.data() as Omit<User, 'uid'>;
         setUser({
           uid: userCredential.user.uid,
-          employeeId: userData.employeeId,
-          name: userData.name,
-          role: userData.role,
+          ...userData,
           joiningDate: userData.joiningDate.toDate(),
-          active: userData.active,
         });
       } else {
         throw new Error("User data not found");
@@ -102,14 +75,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const userDoc = await getDoc(doc(db, "users", employeeId));
           
           if (userDoc.exists()) {
-            const userData = userDoc.data();
+            const userData = userDoc.data() as Omit<User, 'uid'>;
             setUser({
               uid: firebaseUser.uid,
-              employeeId: userData.employeeId,
-              name: userData.name,
-              role: userData.role,
+              ...userData,
               joiningDate: userData.joiningDate.toDate(),
-              active: userData.active,
             });
           }
         } catch (error) {
@@ -131,7 +101,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
