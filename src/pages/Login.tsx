@@ -5,11 +5,46 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import Camera from "@/components/Camera";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getFirestore, doc, setDoc, serverTimestamp } from "firebase/firestore";
+
+const Camera = ({ onCapture, onError }) => {
+  const [photo, setPhoto] = useState(null);
+
+  const handleCapture = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.play();
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0);
+      const photoBlob = await new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, "image/jpeg");
+      });
+      setPhoto(photoBlob);
+      onCapture(photoBlob);
+    } catch (error) {
+      onError(error);
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={handleCapture}>Capture Photo</button>
+      {photo && (
+        <img src={URL.createObjectURL(photo)} alt="Captured Photo" />
+      )}
+    </div>
+  );
+};
 
 const Login = () => {
   const [employeeId, setEmployeeId] = useState("");
@@ -22,28 +57,7 @@ const Login = () => {
   const storage = getStorage();
   const db = getFirestore();
 
-  const getCurrentLocation = () => {
-    return new Promise<GeolocationPosition>((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject('Geolocation is not supported');
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(resolve, reject);
-    });
-  };
-
-  const getIPAddress = async () => {
-    try {
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      return data.ip;
-    } catch (error) {
-      console.error('Error fetching IP:', error);
-      return null;
-    }
-  };
-
-  const handlePhotoCapture = async (photoBlob: Blob) => {
+  const handlePhotoCapture = async (photoBlob) => {
     try {
       const timestamp = new Date().getTime();
       const storageRef = ref(storage, `attendance-photos/${employeeId}/${timestamp}.jpg`);
@@ -59,7 +73,7 @@ const Login = () => {
         employeeId,
         date: serverTimestamp(),
         loginTime: serverTimestamp(),
-        status: new Date().getHours() < 9 || (new Date().getHours() === 9 && new Date().getMinutes() <= 30) ? 'P' : 'PL',
+        status: new Date().getHours() < 9 || (new Date().getHours() === 9 && new Date().getMinutes() <= 30)? 'P' : 'PL',
         photo: photoUrl,
         location: {
           latitude: location.coords.latitude,
@@ -81,7 +95,7 @@ const Login = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setLoading(true);
@@ -142,7 +156,7 @@ const Login = () => {
               className="w-full bg-blue-600 hover:bg-blue-700"
               disabled={loading}
             >
-              {loading ? "Logging in..." : "Login"}
+              {loading? "Logging in..." : "Login"}
             </Button>
           </form>
         </CardContent>
@@ -153,17 +167,7 @@ const Login = () => {
           <DialogHeader>
             <DialogTitle>Capture Attendance Photo</DialogTitle>
           </DialogHeader>
-          <Camera
-            onCapture={handlePhotoCapture}
-            onError={(error) => {
-              toast({
-                title: "Camera Error",
-                description: error,
-                variant: "destructive",
-              });
-              setShowCamera(false);
-            }}
-          />
+          <Camera onCapture={handlePhotoCapture} onError={(error) => console.error(error)} />
         </DialogContent>
       </Dialog>
     </div>
