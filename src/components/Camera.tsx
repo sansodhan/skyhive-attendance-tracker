@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from'react';
 import { Button } from './ui/button';
 
 interface CameraProps {
@@ -9,6 +9,7 @@ interface CameraProps {
 const Camera: React.FC<CameraProps> = ({ onCapture, onError }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [photoUrl, setPhotoUrl] = React.useState('');
 
   useEffect(() => {
     startCamera();
@@ -46,6 +47,11 @@ const Camera: React.FC<CameraProps> = ({ onCapture, onError }) => {
       canvas.toBlob((blob) => {
         if (blob) {
           onCapture(blob);
+          const reader = new FileReader();
+          reader.onload = () => {
+            setPhotoUrl(reader.result as string);
+          };
+          reader.readAsDataURL(blob);
         }
       }, 'image/jpeg', 0.8);
     }
@@ -59,6 +65,13 @@ const Camera: React.FC<CameraProps> = ({ onCapture, onError }) => {
         playsInline
         className="w-full rounded-lg shadow-lg"
       />
+      {photoUrl && (
+        <img
+          src={photoUrl}
+          alt="Captured Photo"
+          className="w-full rounded-lg shadow-lg mt-4"
+        />
+      )}
       <Button 
         onClick={capturePhoto}
         className="mt-4 w-full"
