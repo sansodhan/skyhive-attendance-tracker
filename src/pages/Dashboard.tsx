@@ -3,8 +3,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { format } from "date-fns";
+import { Link } from "react-router-dom";
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -15,10 +16,12 @@ const Dashboard = () => {
     regularize: 0
   });
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchAttendanceStats();
+      fetchAttendanceHistory();
     }
   }, [user]);
 
@@ -51,7 +54,7 @@ const Dashboard = () => {
       const workingDays = Array.from(
         { length: endOfMonth.getDate() },
         (_, i) => new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i + 1)
-      ).filter(date => ![0, 6].includes(date.getDay())).length;
+      ).filter(date =>![0, 6].includes(date.getDay())).length;
 
       setStats({
         present,
@@ -61,6 +64,24 @@ const Dashboard = () => {
       });
     } catch (error) {
       console.error("Error fetching attendance stats:", error);
+    }
+  };
+
+  const fetchAttendanceHistory = async () => {
+    if (!user?.employeeId) return;
+
+    const db = getFirestore();
+    const q = query(
+      collection(db, "attendance"),
+      where("employeeId", "==", user.employeeId)
+    );
+
+    try {
+      const querySnapshot = await getDocs(q);
+      const attendanceHistory = querySnapshot.docs.map((doc) => doc.data());
+      setAttendanceHistory(attendanceHistory);
+    } catch (error) {
+      console.error("Error fetching attendance history:", error);
     }
   };
 
@@ -137,12 +158,40 @@ const Dashboard = () => {
                   Date: {format(new Date(), 'PPP')}
                 </p>
                 <p className="text-sm text-gray-500">
-                  Status: {stats.present > 0 ? 'Present' : 'Not Marked'}
+                  Status: {stats.present > 0? 'Present' : 'Not Marked'}
                 </p>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Attendance History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <table className="w-full table-auto">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-4 py-2">Date</th>
+                  <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2">Photo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attendanceHistory.map((attendance) => (
+                  <tr key={attendance.date}>
+                    <td className="px-4 py-2">{format(attendance.date, 'PPP')}</td>
+                    <td className="px-4 py-2">{attendance.status}</td>
+                    <td className="px-4 py-2">
+                      <img src={attendance.photo} alt="Attendance Photo" className="w-20 h-20 object-cover" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
